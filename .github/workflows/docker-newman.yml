@@ -29,6 +29,7 @@ jobs:
       - name: Run Docker container
         run: |
           docker rm -f fit4110-iot-lab04 || true
+
           docker run -d \
             --name fit4110-iot-lab04 \
             -p 8000:8000 \
@@ -41,7 +42,7 @@ jobs:
           docker logs fit4110-iot-lab04 || true
 
       - name: Wait for service health
-        run: npx wait-on http://127.0.0.1:8000/health --timeout 60000
+        run: npx wait-on http-get://127.0.0.1:8000/health --timeout 60000
 
       - name: Run Newman against Docker container
         run: npm run test:local
