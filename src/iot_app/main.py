@@ -11,15 +11,13 @@ from pydantic import BaseModel, Field
 
 SERVICE_NAME = os.getenv("SERVICE_NAME", "iot-ingestion")
 SERVICE_VERSION = os.getenv("SERVICE_VERSION", "0.4.0")
-AUTH_TOKEN = os.getenv("AUTH_TOKEN", "local-dev-token")
+AUTH_TOKEN = os.getenv("AUTH_TOKEN", "lab04-secret-token")
 
 
 app = FastAPI(
     title="FIT4110 Lab 04 - IoT Ingestion Service",
     version=SERVICE_VERSION,
-    description=(
-        "Dockerized IoT Ingestion API aligned with the Lab 03 OpenAPI/Postman contract."
-    ),
+    description="Dockerized IoT Ingestion API aligned with the Lab 03 OpenAPI/Postman contract.",
 )
 
 
@@ -65,16 +63,6 @@ class SensorReadingCreate(BaseModel):
     timestamp: str = Field(..., examples=["2026-05-13T08:30:00+07:00"])
 
 
-class SensorReading(BaseModel):
-    reading_id: str
-    device_id: str
-    metric: SensorMetric
-    value: float
-    unit: Optional[SensorUnit] = None
-    timestamp: str
-    created_at: str
-
-
 class SensorReadingCreated(BaseModel):
     reading_id: str
     device_id: str
@@ -100,8 +88,10 @@ def build_problem(
         "status": status_code,
         "detail": detail,
     }
+
     if instance:
         problem["instance"] = instance
+
     return problem
 
 
@@ -112,22 +102,15 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     else:
         problem = build_problem(
             status_code=exc.status_code,
-            title=status.HTTP_STATUS_CODES.get(exc.status_code, "HTTP Error"),
+            title="HTTP Error",
             detail=str(exc.detail),
             instance=str(request.url.path),
         )
-
-    problem.setdefault("status", exc.status_code)
-    problem.setdefault("title", status.HTTP_STATUS_CODES.get(exc.status_code, "HTTP Error"))
-    problem.setdefault("type", "about:blank")
-    problem.setdefault("detail", "Request failed")
-    problem.setdefault("instance", str(request.url.path))
 
     return JSONResponse(
         status_code=exc.status_code,
         content=problem,
         media_type="application/problem+json",
-        headers=getattr(exc, "headers", None),
     )
 
 
@@ -161,11 +144,13 @@ def verify_bearer_token(authorization: Optional[str] = Header(default=None)) -> 
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 title="Unauthorized",
                 detail="Missing Authorization header",
+                instance="/readings",
                 problem_type="https://smart-campus.local/problems/unauthorized",
             ),
         )
 
     expected = f"Bearer {AUTH_TOKEN}"
+
     if authorization != expected:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -173,6 +158,7 @@ def verify_bearer_token(authorization: Optional[str] = Header(default=None)) -> 
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 title="Unauthorized",
                 detail="Invalid bearer token",
+                instance="/readings",
                 problem_type="https://smart-campus.local/problems/unauthorized",
             ),
         )
@@ -223,6 +209,7 @@ def create_reading(payload: SensorReadingCreate, response: Response) -> SensorRe
         "timestamp": payload.timestamp,
         "created_at": created_at,
     }
+
     READINGS.append(item)
 
     return SensorReadingCreated(
